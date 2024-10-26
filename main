@@ -1,0 +1,353 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+
+struct Node {
+    int StudentID;
+    char *FirstName;
+    char *LastName;
+    char *Department;
+    double GPA;
+    struct Node *prev;
+    struct Node *next;
+};
+
+struct List {
+    struct Node *head;
+    struct Node *tail;
+    int length;
+};
+
+void insert_tail(struct Node *node, struct List *list) {
+    if (list->head == NULL && list->tail == NULL) {
+        list->head = node;
+        list->tail = node;
+    } else {
+        list->tail->next = node;
+        node->prev = list->tail;
+        list->tail = node;
+    }
+    list->length++;
+}
+
+struct List *create_list() {
+  struct List *list = malloc(sizeof(struct List));
+  if (list == NULL) {
+    fprintf (stderr, "%s: Couldn't create memory for the list; %s\n", "linkedlist", strerror (errno));
+    exit(-1);
+  }
+  list->head = NULL;
+  list->tail = NULL;
+  return list;
+}
+
+struct Node *create_node(int StudentID, char *firstName, char *lastName, char *department, double GPA) {
+  struct Node *node = malloc(sizeof(struct Node));
+  if (node == NULL) {
+    fprintf (stderr, "%s: Couldn't create memory for the node; %s\n", "linkedlist", strerror(errno));
+    exit(-1);
+  }
+  node->StudentID = StudentID;
+  node->FirstName = firstName;
+  node->LastName = lastName;
+  node->Department = department;
+  node->GPA = GPA;
+  node->next = NULL;
+  node->prev = NULL;
+  return node;
+}
+
+void print_list(struct List *list){
+    struct Node *ptr = list->head;
+    while(ptr != NULL){
+        if(ptr != list->head){
+            printf("->");
+        }
+        printf("(%d, %s, %s, %s, %lf)", ptr->StudentID, ptr->FirstName, ptr->LastName, ptr->Department, ptr->GPA);
+        ptr = ptr->next;
+    }
+    printf("\n");
+}
+
+
+
+void fprint_list(FILE* file, struct List *list) {
+    struct Node *ptr = list->head;
+    while(ptr != NULL) {
+        fprintf(file, "%d;%s;%s;%s;%.2lf\n", ptr->StudentID, ptr->FirstName, ptr->LastName, ptr->Department, ptr->GPA);
+        ptr = ptr->next;
+    }
+}
+
+void destroy_list(struct List *list){
+    struct Node *ptr = list->head;
+    struct Node *tmp;
+    while (ptr != NULL) {
+        free(ptr->FirstName);
+        free(ptr->LastName);
+        free(ptr->Department);
+        tmp = ptr;
+        ptr = ptr->next;
+        free(tmp);
+    }
+    free(list);
+}
+
+int list_len(struct List *list)
+{
+    int i = 0;
+    for(struct Node *ptr = list->head; ptr != NULL; ptr = ptr->next) i++;
+    return i;
+}
+
+void insertion_sort(struct List *list)
+{
+    for(int i = 1; i < list->length; i++) //loop iterates through entirety of linked list
+    {
+        struct Node *prev_head = NULL;
+        struct Node *ptr = list->head;      //pointer starts off at head of list
+        int j = 0;
+        while(j < i)
+        {
+            ptr = ptr->next;                 
+            j++;
+        }
+        if(ptr->StudentID > ptr->prev->StudentID) //if current student id is greater than previous student id, start next iteration of for loop
+        {
+            continue;
+        }
+        else if(ptr->StudentID < ptr->prev->StudentID && i > 1) //handles insertion for when current node id is less than previous node id
+        {         
+            if(ptr->next != NULL)        //If current node is not tail
+            {
+                ptr->prev->next = ptr->next; //links forward pointer of previous node to next node
+                ptr->next->prev = ptr->prev; //links backward pointer of next node to previous node
+            }
+            else if (ptr->next == NULL) //if node is last node of list
+            {
+                //struct Node *tail = ptr;
+                list->tail = ptr->prev;
+                ptr->prev->next = NULL;
+            }
+        }
+        struct Node *tbi = ptr;        //node to be inserted (tbi)
+        if(i == 1)
+        {
+            if(tbi->StudentID < ptr->prev->StudentID)
+            {
+                //struct Node *og = tbi;
+                prev_head = list->head;
+                list->head = tbi;
+                list->head->prev = NULL;
+                prev_head->next = ptr->next;
+                prev_head->prev = tbi;
+                ptr->next->prev = prev_head;
+                list->head->next = prev_head; //changes ptr->next
+            }
+            continue;
+        }
+        else if(i > 1)
+        {
+            ptr = ptr->prev;
+        }
+        while(tbi->StudentID < ptr->StudentID && i > 1) 
+        {
+            if(ptr->prev->prev != NULL)//if node is not second node in list
+            { 
+                if(tbi->StudentID > ptr->prev->StudentID) //once node to  be inserted is larger than previous student id, change locations of nodes accordingly
+                {
+                    ptr->prev->next = tbi;
+                    tbi->prev = ptr->prev;
+                    tbi->next = ptr;
+                    ptr->prev = tbi;
+                    break;
+                }
+                else if(tbi->StudentID < ptr->prev->StudentID) //if node tbi is less than id of previous node, pointer points to previous node and next iteration of while loop begins
+                {   
+                    ptr = ptr->prev;
+                    continue;
+                }
+            }
+            else if(ptr->prev->prev == NULL) //current pointer points to second node of list
+            {    
+                if(tbi->StudentID > ptr->prev->StudentID) //if node id is greater than list head, change pointers accordingly
+                {
+                    list->head->next = tbi;
+                    tbi->prev = list->head;
+                    tbi->next = ptr;
+                    ptr->prev = tbi;
+                    break;
+                }  
+                else if(tbi->StudentID < ptr->prev->StudentID) //if node id is less than list head, change node to head and change pointers
+                {
+                    prev_head = list->head;
+                    list->head = tbi;
+                    list->head->prev = NULL;
+                    list->head->next = prev_head;
+                    prev_head->prev = tbi;
+                    prev_head->next =  ptr;
+                    ptr->prev = prev_head;
+                    break;
+                }
+            } 
+        }  
+    }
+}
+
+struct List *mergeLists(struct List *list1, struct List *list2)
+{
+    struct List *sortedList = create_list();
+    int max = list1->length + list2->length;
+    while(sortedList->length < max)
+    {
+        if(list1->length > 1 && list2->length > 1)
+        {
+            if(list1->head->StudentID < list2->head->StudentID)
+            {
+                insert_tail(list1->head, sortedList);
+                list1->length = list1->length-1;
+                list1->head = list1->head->next;
+                continue;
+            }
+            else if(list1->head->StudentID > list2->head->StudentID)
+            {
+                insert_tail(list2->head, sortedList);
+                list2->length = list2->length-1;
+                list2->head = list2->head->next;
+                continue;
+            }
+        }
+        else if(list1->length == 1 && list2->length > 1)
+        {
+            if(list1->head->StudentID < list2->head->StudentID)
+            {
+                insert_tail(list1->head, sortedList);
+                list1->length = list1->length-1;
+                list1->head = NULL;
+                continue;
+            }
+            else if(list1->head->StudentID > list2->head->StudentID)
+            {
+                insert_tail(list2->head, sortedList);
+                list2->length = list2->length-1;
+                list2->head = list2->head->next;
+                continue; 
+            }
+        }
+        else if(list2->length == 1 && list1->length > 1)
+        {
+            if(list2->head->StudentID < list1->head->StudentID)
+            {
+                insert_tail(list2->head, sortedList);
+                list2->length = list2->length-1;
+                list2->head = NULL;
+                continue;
+            }
+            else if(list2->head->StudentID > list1->head->StudentID)
+            {
+                insert_tail(list1->head, sortedList);
+                list1->length = list1->length-1;
+                list1->head = list1->head->next;
+                continue;
+            }
+        }
+        else if(list1->length == 1 && list2->length == 1)
+        {
+            if(list1->head->StudentID < list2->head->StudentID)
+            {
+                insert_tail(list1->head, sortedList);
+                list1->length = list1->length-1;
+                list1->head = NULL;
+                continue;
+            }
+            else if(list1->head->StudentID > list2->head->StudentID)
+            {
+                insert_tail(list2->head, sortedList);
+                list2->length = list2->length-1;
+                list2->head = NULL;
+                continue;
+            }
+        }
+        else if(list1->length == 0 && list2->length > 1 )
+        {
+            insert_tail(list2->head, sortedList);
+            list2->length = list2->length-1;
+            list2->head = list2->head->next;
+            continue;
+        }
+        else if(list2->length == 0 && list1->length > 1)
+        {
+            insert_tail(list1->head, sortedList);
+            list1->length = list1->length-1;
+            list1->head = list1->head->next;
+            continue;
+        }
+        else if(list1->length == 0 && list2->length == 1)
+        {
+            insert_tail(list2->head, sortedList);
+            list2->length = list2->length-1;
+            list2->head = NULL;
+            continue;
+        }
+        else if(list2->length == 0 && list1->length == 1)
+        {
+            insert_tail(list1->head, sortedList);
+            list1->length = list1->length-1;
+            list1->head = NULL;
+            continue;
+        }
+        else if(list2->length == 0 && list1->length == 0)
+        {
+            break;
+        }
+    }
+    destroy_list(list1);
+    destroy_list(list2);
+    return sortedList;
+}
+
+int main(int argc, char *argv[])
+{
+    struct List *list1 = create_list();
+    struct List *list2 = create_list();
+    for(int i = 1; i <= 2; i++)
+    {  
+        char *fileName = argv[i];
+        FILE *filePtr;
+        filePtr = fopen(fileName, "r");
+        int ID = 0;
+        char *firstName = NULL;
+        char *lastName = NULL;
+        char *department = NULL;
+        double GPA;
+        while(fscanf(filePtr, "%d %ms %ms %ms %lf", &ID, &firstName, &lastName, &department, &GPA) == 5)
+        {
+            struct Node *node = NULL;
+            int student = ID;
+            char *fName = firstName;
+            char *lName = lastName;
+            char *dept = department;
+            double grade = GPA;
+            node = create_node(student, fName, lName, dept, grade);
+            if(i == 1)
+            {
+                insert_tail(node, list1);
+            }
+            else if(i == 2)
+            {
+                insert_tail(node, list2);
+            }
+        }
+        fclose(filePtr);
+    }
+
+    insertion_sort(list1);
+    insertion_sort(list2);
+    struct List *sortedList = mergeLists(list1, list2);
+    FILE *Output;
+    Output = fopen(argv[3], "w"); 
+    fprint_list(Output, sortedList);
+    destroy_list(sortedList);
+    fclose(Output);
+}
